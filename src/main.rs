@@ -39,6 +39,8 @@ enum Commands {
     },
     /// List all keys in the database
     List,
+    /// Show the database location on disk
+    Info,
 }
 
 fn main() {
@@ -56,6 +58,9 @@ fn main() {
         }
         Commands::List => {
             handle_list(&cli.db_dir);
+        }
+        Commands::Info => {
+            handle_info(&cli.db_dir);
         }
     }
 }
@@ -203,5 +208,34 @@ fn handle_list(db_dir: &PathBuf) {
         for key in keys {
             println!("{}", key);
         }
+    }
+}
+
+fn handle_info(db_dir: &PathBuf) {
+    // Resolve the absolute path to show the actual location
+    let abs_path = match std::fs::canonicalize(db_dir) {
+        Ok(path) => path,
+        Err(_) => {
+            // If canonicalization fails (e.g., directory doesn't exist yet),
+            // convert to absolute path using current directory as base
+            match std::env::current_dir() {
+                Ok(current) => current.join(db_dir),
+                Err(_) => db_dir.clone(),
+            }
+        }
+    };
+    
+    let log_path = abs_path.join("log");
+    
+    println!("Database directory: {}", abs_path.display());
+    println!("Log file: {}", log_path.display());
+    
+    // Show if the log file exists
+    if log_path.exists() {
+        if let Ok(metadata) = std::fs::metadata(&log_path) {
+            println!("Log file size: {} bytes", metadata.len());
+        }
+    } else {
+        println!("Log file: (not created yet)");
     }
 }

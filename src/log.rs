@@ -324,6 +324,7 @@ mod tests {
 }
 
 // Helper methods for tests
+#[cfg(test)]
 impl LogRecord {
     fn key(&self) -> &[u8] {
         match self {

@@ -1,6 +1,7 @@
 use crate::log::{Log, LogRecord};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::path::Path;
 
 /// In-memory document database with crash-safe persistence.
 /// 
@@ -10,8 +11,6 @@ use std::path::{Path, PathBuf};
 /// - Keys are stored as strings (for JSON compatibility).
 /// - Values are stored as raw bytes (JSON documents as bytes).
 pub struct Db {
-    /// Path to the log file for persistence.
-    log_path: PathBuf,
     /// Append-only log for crash-safe writes.
     log: Log,
     /// In-memory index mapping keys to values.
@@ -27,8 +26,14 @@ impl Db {
     /// On startup, replays the log to rebuild the in-memory index.
     /// This ensures crash recovery: the database state matches what it was
     /// before the crash.
+    /// 
+    /// The directory is created automatically if it doesn't exist.
     pub fn open<P: AsRef<Path>>(dir: P) -> std::io::Result<Self> {
         let dir = dir.as_ref();
+        
+        // Create the directory if it doesn't exist
+        fs::create_dir_all(dir)?;
+        
         let log_path = dir.join("log");
         
         // Replay the log to rebuild the index
@@ -38,7 +43,6 @@ impl Db {
         let log = Log::open(&log_path)?;
         
         Ok(Db {
-            log_path,
             log,
             index,
         })
@@ -250,6 +254,29 @@ mod tests {
         let db = Db::open(temp_dir.path()).unwrap();
         
         assert_eq!(db.get("anykey"), None);
+    }
+
+    #[test]
+    fn test_automatic_directory_creation() {
+        // Test that the database directory is created automatically if it doesn't exist
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("nonexistent").join("subdir");
+        
+        // Directory doesn't exist yet
+        assert!(!db_path.exists());
+        
+        // Opening should create the directory
+        let mut db = Db::open(&db_path).unwrap();
+        assert!(db_path.exists());
+        assert!(db_path.is_dir());
+        
+        // Should be able to use the database
+        db.put("key1", b"value1").unwrap();
+        assert_eq!(db.get("key1"), Some(b"value1".as_slice()));
+        
+        // Log file should exist
+        let log_path = db_path.join("log");
+        assert!(log_path.exists());
     }
 
     #[test]
