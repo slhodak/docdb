@@ -111,6 +111,9 @@ The database creates a `log` file in the specified directory to store all operat
 
 ## Examples
 
+![CLI test of docdb](img/docdb-test.png)
+
+
 ### Example Workflow
 
 ```bash
